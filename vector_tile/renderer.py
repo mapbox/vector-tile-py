@@ -184,21 +184,25 @@ class VectorTile(object):
     transport over the wire and later rendering by MapBox tools.
 
     """
-    def __init__(self, req, path_multiplier=16):
+    def __init__(self, req, tile=None, path_multiplier=16):
         assert isinstance(req,Request)
         self.request = req
         self.extent = self.request.extent
         self.ctrans = CoordTransform(req)
         self.path_multiplier = path_multiplier
-        self.tile = vector_tile_pb2.tile()
-        self.layer = self.tile.layers.add()
-        self.layer.name = "points"
-        self.layer.version = 2
-        self.layer.extent = req.size * self.path_multiplier # == 4096
+        self.pixels = {}
+        self.keys = {}
+        self.values = {}
         self.feature_count = 0
-        self.keys = []
-        self.values = []
-        self.pixels = []
+        if tile:
+            self.tile = tile
+            for layer in self.tile.layers:
+                self.pixels[layer.name] = []
+                self.feature_count += len(layer.features)
+                self.keys[layer.name] = layer.keys
+                self.values[layer.name] = layer.values
+        else:
+            self.tile = vector_tile_pb2.tile()
     
     def __str__(self):
         return self.tile.__str__()
@@ -227,75 +231,147 @@ class VectorTile(object):
         #assert dyi >= 0 and dyi <= self.layer.extent
         return dxi,dyi
 
-    def add_point(self, x, y, properties,skip_coincident=True,rint=False):
+    def add_point(self, layer, x, y, properties,skip_coincident=True,rint=False):
         if self.extent.intersects(x,y):
             dx,dy = self._encode_coords(x,y,rint=rint)
             # TODO - use numpy matrix to "paint" points so we
             # can drop all coincident ones except last
             key = "%d-%d" % (dx,dy)
-            if key not in self.pixels:
-                f = self.layer.features.add()
+            if key not in self.pixels[layer.name]:
+                f = layer.features.add()
                 self.feature_count += 1
                 f.id = self.feature_count
                 f.type = self.tile.Point
-                self._handle_attr(self.layer,f,properties)
+                self._handle_attr(layer,f,properties)
                 f.geometry.append((1 << 3) | (1 & ((1 << 3) - 1)))
                 f.geometry.append(dx)
                 f.geometry.append(dy)
-                self.pixels.append(key)
+                self.pixels[layer.name].append(key)
             return True
         else:
             raise RuntimeError("point does not intersect with tile bounds")
         return False
 
-    def to_geojson(self,lonlat=False):
+    def add_layer(self, name, version=1,):
+        layer = self.tile.layers.add()
+        layer.name = name
+        layer.version = version
+        layer.extent = self.request.size * self.path_multiplier # == 4096
+        self.pixels[layer.name] = []
+        self.keys[layer.name] = []
+        self.values[layer.name] = []
+        return layer
+
+    def to_geojson(self, layer=None,lonlat=False, layer_names=False):
         jobj = {}
         jobj['type'] = "FeatureCollection"
         features = []
-        for feat in self.layer.features:
-            fobj = {}
-            fobj['type'] = "Feature"
-            properties = {}
-            for i in xrange(0,len(feat.tags),2):
-                key_id = feat.tags[i]
-                value_id = feat.tags[i+1]
-                name = str(self.layer.keys[key_id])
-                val = self.layer.values[value_id]
-                if val.HasField('bool_value'):
-                    properties[name] = val.bool_value
-                elif val.HasField('string_value'):
-                    properties[name] = val.string_value
-                elif val.HasField('int_value'):
-                    properties[name] = val.int_value
-                elif val.HasField('float_value'):
-                    properties[name] = val.float_value
-                elif val.HasField('double_value'):
-                    properties[name] = val.double_value
-                else:
-                    raise Exception("Unknown value type: '%s'" % val)
-            fobj['properties'] = properties
-            x,y = self._decode_coords(feat.geometry[1],feat.geometry[2])
-            if lonlat:
-                x,y = merc2lonlat(x,y)
-            fobj['geometry'] = {
-                "type":"Point",
-                "coordinates": [x,y]
-            }
-            features.append(fobj)
+        cmd_bits = 3
+        SEG_END    = 0
+        SEG_MOVETO = 1
+        SEG_LINETO = 2
+        SEG_CLOSE = (0x40 | 0x0f)
+
+        if layer:
+            layers = (layer,)
+        else:
+            layers = self.tile.layers
+
+        for layer in layers:
+            for feat in layer.features:
+                fobj = {}
+                fobj['type'] = "Feature"
+                properties = {}
+                for i in xrange(0,len(feat.tags),2):
+                    key_id = feat.tags[i]
+                    value_id = feat.tags[i+1]
+                    name = str(layer.keys[key_id])
+                    val = layer.values[value_id]
+                    if val.HasField('bool_value'):
+                        properties[name] = val.bool_value
+                    elif val.HasField('string_value'):
+                        properties[name] = val.string_value
+                    elif val.HasField('int_value'):
+                        properties[name] = val.int_value
+                    elif val.HasField('float_value'):
+                        properties[name] = val.float_value
+                    elif val.HasField('double_value'):
+                        properties[name] = val.double_value
+                    else:
+                        raise Exception("Unknown value type: '%s'" % val)
+
+                if layer_names:
+                    properties['layer'] = layer.name
+                fobj['properties'] = properties
+     
+                geometry_count = len(feat.geometry)
+                if feat.type == 0:
+                    pass
+                elif feat.type == 1:#point
+                    x,y = self._decode_coords(feat.geometry[1],feat.geometry[2])
+                    if lonlat:
+                        x,y = merc2lonlat(x,y)
+                    fobj['geometry'] = {
+                        "type":"Point",
+                        "coordinates": [x,y]
+                    }
+                elif feat.type == 2 or feat.type == 3:#line polygon
+                    length = -1
+                    rings = []
+                    i = 0
+
+                    coordinates = []
+                    while (i < geometry_count):
+                        if length <= 0:
+                            cmd_length = feat.geometry[i]
+                            cmd = cmd_length & ((1 << cmd_bits) - 1)
+                            length = cmd_length >> cmd_bits
+                            i += 1
+
+                        if length > 0:
+                            length -= 1
+                            if cmd == SEG_MOVETO or cmd == SEG_LINETO:
+                                x,y = self._decode_coords(feat.geometry[i],feat.geometry[i+1])
+                                if lonlat:
+                                    x,y = merc2lonlat(x,y)
+                                if cmd == SEG_MOVETO:
+                                    if len(coordinates) > 0:
+                                        rings.append(coordinates)
+                                        coordinates = []
+                                coordinates.append([x,y])
+                                i += 2
+                            elif cmd == (SEG_CLOSE & ((1 << cmd_bits) - 1)):
+                                if len(coordinates) > 0:
+                                    coordinates.append(coordinates[0])
+                                    rings.append(coordinates)
+                                    coordinates = []
+                    if feat.type == 2:
+                        fobj['geometry'] = {
+                            "type":"LineString",
+                            "coordinates": coordinates
+                        }
+                    elif feat.type == 3:
+                        fobj['geometry'] = {
+                            "type":"Polygon",
+                            "coordinates": rings
+                        }
+     
+                features.append(fobj)
+     
         jobj['features'] = features
         return json.dumps(jobj,indent=4)
 
     def _handle_attr(self, layer, feature, props):
       for k,v in props.items():
-          if k not in self.keys:
+          if k not in self.keys[layer.name]:
               layer.keys.append(k)
-              self.keys.append(k)
-              idx = self.keys.index(k)
+              self.keys[layer.name].append(k)
+              idx = self.keys[layer.name].index(k)
               feature.tags.append(idx)
           else:
-              idx = self.keys.index(k)
+              idx = self.keys[layer.name].index(k)
               feature.tags.append(idx)
-          if v not in self.values:
+          if v not in self.values[layer.name]:
               if (isinstance(v,bool)):
                   val = layer.values.add()
                   val.bool_value = v
@@ -310,5 +386,5 @@ class VectorTile(object):
                   val.double_value = v
               else:
                   raise Exception("Unknown value type: '%s'" % type(v))
-              self.values.append(v)
-              feature.tags.append(self.values.index(v))
+              self.values[layer.name].append(v)
+              feature.tags.append(self.values[layer.name].index(v))

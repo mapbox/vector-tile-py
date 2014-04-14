@@ -14,6 +14,8 @@ if __name__ == "__main__" :
     req = renderer.Request(x,y,zoom)
     # create a vector tile, given a tile request
     vtile = renderer.VectorTile(req)
+    # create a layer in the tile
+    layer = vtile.add_layer(name="points")
     # for a given point representing a spot in NYC
     lat = 40.70512
     lng = -74.01226
@@ -22,7 +24,7 @@ if __name__ == "__main__" :
     # convert to mercator coords
     x,y = renderer.lonlat2merc(lng,lat)
     # add this point and attributes to the tile
-    vtile.add_point(x,y,attr)
+    vtile.add_point(layer,x,y,attr)
     # print the protobuf as geojson just for debugging
     # NOTE: coordinate rounding is by design and 
     print 'GeoJSON representation of tile (purely for debugging):'
