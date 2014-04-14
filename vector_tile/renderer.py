@@ -319,6 +319,8 @@ class VectorTile(object):
                     length = -1
                     rings = []
                     i = 0
+                    x = 0
+                    y = 0
 
                     coordinates = []
                     while (i < geometry_count):
@@ -331,15 +333,24 @@ class VectorTile(object):
                         if length > 0:
                             length -= 1
                             if cmd == SEG_MOVETO or cmd == SEG_LINETO:
-                                x,y = self._decode_coords(feat.geometry[i],feat.geometry[i+1])
+                                dx,dy = feat.geometry[i],feat.geometry[i+1]
+                                i += 2
+                                #zig zag decoding
+                                dx = ((dx >> 1) ^ (-(dx & 1)))
+                                dy = ((dy >> 1) ^ (-(dy & 1)))
+                                #delta decoding
+                                x += float(dx)/self.path_multiplier
+                                y += float(dy)/self.path_multiplier
+                                #At this point x/y is a coord encoded in tile coord space, from 0 to TILE_SIZE
+                                x_geo,y_geo = self.ctrans.backward(x,y)
+
                                 if lonlat:
-                                    x,y = merc2lonlat(x,y)
+                                    x_geo,y_geo = merc2lonlat(x_geo,y_geo)
                                 if cmd == SEG_MOVETO:
                                     if len(coordinates) > 0:
                                         rings.append(coordinates)
                                         coordinates = []
-                                coordinates.append([x,y])
-                                i += 2
+                                coordinates.append([x_geo,y_geo])
                             elif cmd == (SEG_CLOSE & ((1 << cmd_bits) - 1)):
                                 if len(coordinates) > 0:
                                     coordinates.append(coordinates[0])
