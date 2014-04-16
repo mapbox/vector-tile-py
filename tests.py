@@ -90,13 +90,15 @@ def test_key_value_deduplication():
     lat, lng = 38, -121
     attr = {"hello":"world"}
     x,y = renderer.lonlat2merc(lng,lat)
+    #add a point, it should add 1 key and 1 value
     vtile.add_point(layer, x, y, attr)
     assert len(layer.keys) == 1 and len(layer.values) == 1
     #add another feature with the same key and value
-    vtile.add_point(layer, x+1, y+1, attr)
+    vtile.add_point(layer, x+1000, y, attr)
     assert len(layer.keys) == 1 and len(layer.values) == 1
-    #add another feature with same key, but different value
-    vtile.add_point(layer, x+2, y+2, {"hello":"mars"})
+    #add another feature with existing key and new value
+    vtile.add_point(layer, x+1000, y+1000, {"hello":"mars"})
     assert len(layer.keys) == 1 and len(layer.values) == 2
-    vtile.add_point(layer, x+3, y+3, {"goodbye":"world"})
+    #add another feature with an existing value and a new key
+    vtile.add_point(layer, x+1500, y+1000, {"goodbye":"world"})
     assert len(layer.keys) == 2 and len(layer.values) == 2
