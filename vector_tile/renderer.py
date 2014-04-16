@@ -373,29 +373,28 @@ class VectorTile(object):
         return jobj
 
     def _handle_attr(self, layer, feature, props):
-      for k,v in props.items():
-          if k not in self.keys[layer.name]:
-              layer.keys.append(k)
-              self.keys[layer.name].append(k)
-              idx = self.keys[layer.name].index(k)
-              feature.tags.append(idx)
-          else:
-              idx = self.keys[layer.name].index(k)
-              feature.tags.append(idx)
-          if v not in self.values[layer.name]:
-              if (isinstance(v,bool)):
-                  val = layer.values.add()
-                  val.bool_value = v
-              elif (isinstance(v,str)) or (isinstance(v,unicode)):
-                  val = layer.values.add()
-                  val.string_value = v
-              elif (isinstance(v,int)):
-                  val = layer.values.add()
-                  val.int_value = v
-              elif (isinstance(v,float)):
-                  val = layer.values.add()
-                  val.double_value = v
-              else:
-                  raise Exception("Unknown value type: '%s'" % type(v))
-              self.values[layer.name].append(v)
-              feature.tags.append(self.values[layer.name].index(v))
+        for k,v in props.items():
+            if k not in self.keys[layer.name]:
+                print "adding key " + k
+                layer.keys.append(k)
+                self.keys[layer.name].append(k)
+            else:
+                print "key exists " + k
+            feature.tags.append(self.keys[layer.name].index(k))
+            if v not in self.values[layer.name]:
+                if (isinstance(v,bool)):
+                    val = layer.values.add()
+                    val.bool_value = v
+                elif (isinstance(v,str)) or (isinstance(v,unicode)):
+                    val = layer.values.add()
+                    val.string_value = v
+                elif (isinstance(v,int)):
+                    val = layer.values.add()
+                    val.int_value = v
+                elif (isinstance(v,float)):
+                    val = layer.values.add()
+                    val.double_value = v
+                else:
+                    raise Exception("Unknown value type: '%s'" % type(v))
+                self.values[layer.name].append(v)
+            feature.tags.append(self.values[layer.name].index(v))
