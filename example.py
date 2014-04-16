@@ -28,7 +28,7 @@ if __name__ == "__main__" :
     # print the protobuf as geojson just for debugging
     # NOTE: coordinate rounding is by design and 
     print 'GeoJSON representation of tile (purely for debugging):'
-    print vtile.to_geojson()
+    print json.dumps(vtile.to_geojson(), indent=4)
     print '-'*60
     # print the protobuf message as a string
     print 'Protobuf string representation of tile (purely for debugging):'

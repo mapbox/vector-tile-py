@@ -68,7 +68,7 @@ if __name__ == "__main__" :
                     print(vtile.to_geojson(layer=layer, lonlat=True, layer_names=True))
                     break
         else:
-            print(vtile.to_geojson(lonlat=True, layer_names=True))
+            print(json.dumps(vtile.to_geojson(lonlat=True, layer_names=True), indent=4))
 
         if options.verbose:
             for layer in tile.layers:

@@ -370,7 +370,7 @@ class VectorTile(object):
                 features.append(fobj)
      
         jobj['features'] = features
-        return json.dumps(jobj,indent=4)
+        return jobj
 
     def _handle_attr(self, layer, feature, props):
       for k,v in props.items():
