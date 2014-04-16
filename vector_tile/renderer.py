@@ -247,7 +247,7 @@ class VectorTile(object):
                 f.geometry.append(dx)
                 f.geometry.append(dy)
                 self.pixels[layer.name].append(key)
-            return True
+                return True
         else:
             raise RuntimeError("point does not intersect with tile bounds")
         return False
