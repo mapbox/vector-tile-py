@@ -252,7 +252,7 @@ class VectorTile(object):
             raise RuntimeError("point does not intersect with tile bounds")
         return False
 
-    def add_layer(self, name, version=1,):
+    def add_layer(self, name, version=1):
         layer = self.tile.layers.add()
         layer.name = name
         layer.version = version
