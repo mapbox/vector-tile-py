@@ -375,11 +375,8 @@ class VectorTile(object):
     def _handle_attr(self, layer, feature, props):
         for k,v in props.items():
             if k not in self.keys[layer.name]:
-                print "adding key " + k
                 layer.keys.append(k)
                 self.keys[layer.name].append(k)
-            else:
-                print "key exists " + k
             feature.tags.append(self.keys[layer.name].index(k))
             if v not in self.values[layer.name]:
                 if (isinstance(v,bool)):
