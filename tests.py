@@ -76,6 +76,59 @@ class TestRequestCtrans(unittest.TestCase):
         assert abs(testY - reversedY) < 1
 
 class TestTileCreation(unittest.TestCase):
+    def test_layer_creation(self):
+        """ Test creating an empty tile and an empty layer """
+        req = renderer.Request(0,0,0)
+        vtile = renderer.VectorTile(req)
+        assert isinstance(vtile.tile, vector_tile_pb2.tile)
+        self.assertEqual(len(vtile.tile.layers), 0)
+        layer = vtile.add_layer(name="points")
+        assert layer is not None and isinstance(layer, vector_tile_pb2.tile.layer)
+        self.assertEqual(len(vtile.tile.layers), 1)
+        self.assertEqual(vtile.tile.layers[0], layer)
+        self.assertEqual(len(layer.features), 0)
+
+    def test_simple_tile_z0(self):
+        """ Test creating a tile, adding a single layer and a single point """
+        req = renderer.Request(0,0,0)
+        vtile = renderer.VectorTile(req)
+        #Test creating a layer
+        layerName = "points"
+        layer = vtile.add_layer(name=layerName)
+        #test adding a point feature
+        lat, lng = 38, -121
+        attr = {"hello":"world"}
+        x,y = renderer.lonlat2merc(lng,lat)
+        assert vtile.add_point(layer,x,y,attr)
+        assert len(layer.features) == 1
+        feature = layer.features[0]
+        key_id = feature.tags[0]
+        value_id = feature.tags[1]
+        key = str(layer.keys[key_id])
+        assert key == "hello"
+        value = layer.values[value_id]
+        assert value.HasField('string_value')
+        assert value.string_value == "world"
+        #dump the layer to GeoJSON and make sure the output matches the input
+        j_obj = vtile.to_geojson(layer_names=True, lonlat=True)
+        assert isinstance(j_obj, dict)
+        self.assertEqual(j_obj["type"], "FeatureCollection")
+        self.assertEqual(len(j_obj["features"]), 1)
+        self.assertEqual(j_obj["features"][0]["geometry"]["type"], "Point")
+        self.assertEqual(len(j_obj["features"][0]["geometry"]["coordinates"]), 2)
+        self.assertAlmostEqual(j_obj["features"][0]["geometry"]["coordinates"][0], lng, 0)
+        self.assertAlmostEqual(j_obj["features"][0]["geometry"]["coordinates"][1], lat, 0)
+        self.assertEqual(j_obj["features"][0]["properties"]["layer"], layerName)
+        self.assertEqual(j_obj["features"][0]["properties"]["hello"], "world")
+        #now dump tile to protocol buffer message
+        pbf = vtile.to_message()
+        assert len(pbf) > 0
+        tile = vector_tile_pb2.tile()
+        tile.ParseFromString(pbf)
+        vtile2 = renderer.VectorTile(req, tile)
+        j_obj_deserialized = vtile2.to_geojson(layer_names=True, lonlat=True)
+        self.assertDictEqual(j_obj, j_obj_deserialized)
+
     def test_attribute_types(self):
         """ Test that all attribute types are handled correctly """
         req = renderer.Request(0,0,0)
@@ -104,11 +157,10 @@ class TestTileCreation(unittest.TestCase):
         vtile = renderer.VectorTile(req)
         layer = vtile.add_layer(name="points")
         assert len(layer.keys) == 0 and len(layer.values) == 0
-
-        attr = {"hello":"world"}
-        #add a point, it should add 1 key and 1 value
         width = req.get_width()
         height = req.get_height()
+        attr = {"hello":"world"}
+        #add a point, it should add 1 key and 1 value
         vtile.add_point(layer, width*.1, height*.1, attr)
         assert len(layer.keys) == 1 and len(layer.values) == 1
         #add another feature with the same key and value
@@ -208,4 +260,3 @@ class TestTileCreation(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

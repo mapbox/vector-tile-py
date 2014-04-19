@@ -227,8 +227,6 @@ class VectorTile(object):
             dy = int(math.floor(dy * self.path_multiplier))
         dxi = (dx << 1) ^ (dx >> 31)
         dyi = (dy << 1) ^ (dy >> 31)
-        #assert dxi >= 0 and dxi <= self.layer.extent
-        #assert dyi >= 0 and dyi <= self.layer.extent
         return dxi,dyi
 
     def add_point(self, layer, x, y, properties,skip_coincident=True,rint=False):
