@@ -355,10 +355,16 @@ class VectorTile(object):
                                     rings.append(coordinates)
                                     coordinates = []
                     if feat.type == 2:
-                        fobj['geometry'] = {
-                            "type":"LineString",
-                            "coordinates": coordinates
-                        }
+                        if len(rings):
+                            fobj['geometry'] = {
+                                "type":"MultiLineString",
+                                "coordinates": rings
+                            }
+                        else:
+                            fobj['geometry'] = {
+                                "type":"LineString",
+                                "coordinates": coordinates
+                            }
                     elif feat.type == 3:
                         fobj['geometry'] = {
                             "type":"Polygon",
