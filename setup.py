@@ -27,6 +27,9 @@ setup(name='vector_tile',
       install_requires=[
         'protobuf'
       ],
+      extras_require={
+        'test': ['pytest'],
+      },
       entry_points="""
       # -*- Entry points: -*-
       """,
