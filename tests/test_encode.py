@@ -99,7 +99,30 @@ def test_create_point_feature():
     assert isinstance(feature, PointFeature)
     assert len(layer.features) == 1
     assert feature == layer.features[0]
+    feature.add_points([10,11])
+    geometry = feature.get_points()
+    assert geometry[0] == [10,11]
+    # add points simply adds to end
+    # BE WARNED THIS IS NOT IDEAL ENCODING -- use other example further below to achieve better results
+    feature.add_points([10,12])
+    feature.add_points([10,13])
+    geometry = feature.get_points()
+    assert geometry[1] == [10,12]
+    assert geometry[2] == [10,13]
+    # clear current geometry
+    feature.clear_geometry()
+    assert feature.get_points() == []
+    # This is proper way to add multiple points!
+    feature.add_points([[10,11],[10,12],[10,13]])
+    assert feature.get_points() == [[10,11],[10,12],[10,13]]
 
+    # Now serialize the tile
+    data = vt.serialize()
+    # Reload as new tile to check that cursor moves to proper position for another add point
+    vt = VectorTile(data)
+    feature = vt.layers[0].features[0]
+    feature.add_points([10,14])
+    assert feature.get_points() == [[10,11],[10,12],[10,13],[10,14]]
 
 def test_create_line_feature():
     vt = VectorTile()

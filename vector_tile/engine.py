@@ -113,6 +113,7 @@ class Feature(object):
     def _reset_cursor(self):
         self.cursor = []
         self.cursor[:self.dimensions] = itertools.repeat(0, self.dimensions)
+        self._cursor_at_end = False
     
     def _encode_point(self, pt):
         for i in xrange(self.dimensions):
@@ -150,7 +151,7 @@ class Feature(object):
 
     def clear_geometry(self):
         self.has_geometry = False
-        self._feature.clearField('geometry')
+        self._feature.ClearField('geometry')
 
 class PointFeature(Feature):
     
@@ -163,6 +164,9 @@ class PointFeature(Feature):
     def add_points(self, points):
         if not isinstance(points, list):
             raise Exception("Invalid point geometry")
+        if not self._cursor_at_end:
+            # Use geometry retrieval process to move cursor to proper position
+            self.get_points()
         if len(points) < 1:
             return
         multi_point = isinstance(points[0], list)
@@ -189,6 +193,7 @@ class PointFeature(Feature):
                 current_command = geom.next()
         except StopIteration:
             pass
+        self._cursor_at_end = True
         return points
         
 
@@ -204,6 +209,9 @@ class LineStringFeature(Feature):
         num_commands = len(linestring)
         if num_comands < 2:
             raise Exception("Error adding linestring, less then 2 points provided")
+        if not self._cursor_at_end:
+            # Use geometry retrieval process to move cursor to proper position
+            self.get_line_strings()
         self._feature.geometry.append(command_move_to(1))
         self._encode_point(linestring[0])
         self._feature.geometry.append(command_line_to(num_commands - 1))
@@ -235,6 +243,7 @@ class LineStringFeature(Feature):
             if len(line_string) > 1:
                 line_strings.append(line_string)
             pass
+        self._cursor_at_end = True
         return line_strings
 
 class PolygonFeature(Feature):
@@ -246,6 +255,9 @@ class PolygonFeature(Feature):
         self.type = 'polygon'
             
     def add_ring(self, ring):
+        if not self._cursor_at_end:
+            # Use geometry retrieval process to move cursor to proper position
+            self.get_rings()
         num_commands = len(ring)
         if num_comands < 3:
             raise Exception("Error adding ring to polygon, too few points")
@@ -285,6 +297,7 @@ class PolygonFeature(Feature):
                 current_command = geom.next()
         except StopIteration:
             pass
+        self._cursor_at_end = True
         return rings
     
     def _is_ring_clockwise(self, ring):
@@ -347,6 +360,7 @@ class SplineFeature(Feature):
                     current_command = geom.next()
         except StopIteration:
             pass
+        self._cursor_at_end = True
         if len(control_points) < 1:
             return []
         return control_points
