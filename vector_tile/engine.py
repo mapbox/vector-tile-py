@@ -34,6 +34,73 @@ def next_command_line_to(command_integer):
 def next_command_close_path(command_integer):
     return get_command_id(command_integer) == 7
 
+class FeatureProperties(object):
+
+    def __init__(self, feature, layer):
+        self._feature = feature
+        self._layer = layer
+        self._prop = {}
+        self._prop_current = False
+
+    def _encode_prop(self):
+        self._feature.tags[:] = self._layer.add_attributes(self._prop)
+        self._prop_current = True
+    
+    def _decode_prop(self):
+        if not self._prop_current:
+            if len(self._feature.tags) == 0:
+                self._prop = {}
+            else:
+                self._prop = self._layer.get_attributes(self._feature.tags)
+            self._prop_current = True
+
+    def __len__(self):
+        self._decode_prop()
+        return len(self._prop)
+        
+    def __getitem__(self, key):
+        self._decode_prop()
+        if not isinstance(key, str) and not isinstance(key, unicode):
+            raise TypeError("Keys must be of type str or unicode")
+        return self._prop[key]
+
+    def __delitem__(self, key):
+        self._decode_prop()
+        del self._prop[key]
+        self._encode_prop()
+
+    def __setitem__(self, key, value):
+        if not isinstance(key, str) and not isinstance(key, unicode):
+            raise TypeError("Keys must be of type str or unicode")
+        self._decode_prop()
+        self._prop[key] = value
+        self._encode_prop()
+
+    def __iter__(self):
+        self._decode_prop()
+        return self._prop.__iter__()
+
+    def __eq__(self, other):
+        self._decode_prop()
+        if isinstance(other, dict):
+            return self._prop == other
+        elif isinstance(other, FeatureProperties):
+            other._decode_prop()
+            return self._prop == other._prop
+        return False
+    
+    def __str__(self):
+        self._decode_prop()
+        return self._prop.__str__()
+
+    def __contains__(self, key):
+        self._decode_prop()
+        return self._prop.__contains__(key)
+   
+    def set(self, prop):
+        self._prop = prop
+        self._encode_prop()
+
 class Feature(object):
 
     def __init__(self, feature, layer, dimensions):
@@ -41,6 +108,7 @@ class Feature(object):
         self._layer = layer
         self.dimensions = dimensions
         self._reset_cursor()
+        self._properties = FeatureProperties(feature, layer)
 
     def _reset_cursor(self):
         self.cursor = []
@@ -54,7 +122,7 @@ class Feature(object):
     def _decode_point(self, integers):
         for i in xrange(self.dimensions):
             self.cursor[i] = self.cursor[i] + zig_zag_decode(integers[i])
-        return self.cursor
+        return list(self.cursor)
 
     def _points_equal(self, pt1, pt2):
         for i in xrange(self.dimensions):
@@ -64,13 +132,11 @@ class Feature(object):
 
     @property
     def properties(self):
-        if len(self._feature.tags) > 0:
-            return self._layer.get_attributes(self._feature.tags)
-        return {}
+        return self._properties
 
     @properties.setter
     def properties(self, props):
-        self._feature.tags[:] = self._layer.add_attributes(props)
+        self._properties.set(props)
 
     @property
     def id(self):
@@ -157,13 +223,14 @@ class LineStringFeature(Feature):
                     raise Exception("Command move_to has command count not equal to 1 in a line string")
                 line_string.append(self._decode_point([geom.next() for n in xrange(self.dimensions)]))
                 current_command = geom.next()
+                if not next_command_line_to(current_command):
+                    raise Exception("Command move_to not followed by a line_to command in a line string")
                 while next_command_line_to(current_command):
                     for i in xrange(get_command_count(current_command)):
                         line_string.append(self._decode_point([geom.next() for n in xrange(self.dimensions)]))
                     current_command = geom.next()
                 if len(line_string) > 1:
                     line_strings.append(line_string)
-                current_command = geom.next()
         except StopIteration:
             if len(line_string) > 1:
                 line_strings.append(line_string)
@@ -219,6 +286,31 @@ class PolygonFeature(Feature):
         except StopIteration:
             pass
         return rings
+    
+    def _is_ring_clockwise(self, ring):
+        if self.dimensions != 2:
+            return False
+        area = 0.0
+        for i in xrange(len(ring) - 1):
+            area += (float(ring[i][0]) * float(ring[i+1][1])) - (float(ring[i][1]) * float(ring[i+1][0]))
+        return area < 0.0
+    
+    def get_polygons(self):
+        rings = self.get_rings()
+        polygons = []
+        polygon = []
+        for ring in rings:
+            if not self._is_ring_clockwise(ring):
+                if len(polygon) != 0:
+                    polygons.append(polygon)
+                polygon = []
+                polygon.append(ring)
+            elif len(polygon) != 0:
+                polygon.append(ring)
+        if len(polygon) != 0:
+            polygons.append(polygon)
+        return polygons
+
 
 class SplineFeature(Feature):
     
@@ -261,9 +353,7 @@ class SplineFeature(Feature):
 
     @property
     def knots(self):
-        if self._feature.HasField('knots'):
-            return self._feature.knots
-        return []
+        return self._feature.knots
 
     @knots.setter
     def knots(self, knots):
@@ -384,10 +474,9 @@ class Layer(object):
     def add_attributes(self, props):
         tags = [];
         for k,v in props.items():
-            if k not in self._keys:
-                self._layer.keys.append(k)
-                self._keys.append(k)
-            tags.append(self._keys.index(k))
+            if not isinstance(k, str) and not isinstance(k, unicode):
+                del props[k]
+                continue
             if v not in self._values:
                 if (isinstance(v,bool)):
                     val = self._layer.values.add()
@@ -402,8 +491,13 @@ class Layer(object):
                     val = self._layer.values.add()
                     val.double_value = v
                 else:
-                    raise Exception("Unknown value type: '%s'" % type(v))
+                    del props[k]
+                    continue
                 self._values.append(v)
+            if k not in self._keys:
+                self._layer.keys.append(k)
+                self._keys.append(k)
+            tags.append(self._keys.index(k))
             tags.append(self._values.index(v))
         return tags
 
