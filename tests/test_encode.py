@@ -131,3 +131,89 @@ def test_create_line_feature():
     assert isinstance(feature, LineStringFeature)
     assert len(layer.features) == 1
     assert feature == layer.features[0]
+    line_string = [[10,11],[10,12],[10,13],[10,14]]
+    feature.add_line_string(line_string)
+    # note that we pull back possible multi line string here
+    assert feature.get_line_strings() == [line_string]
+    
+    bad_line_string = [[1,1]]
+    with pytest.raises(Exception):
+        feature.add_line_string(bad_line_string)
+    assert feature.get_line_strings() == [line_string]
+
+    line_string2 = [[9,9],[30,5]]
+    feature.add_line_string(line_string2)
+    assert feature.get_line_strings() == [line_string, line_string2]
+
+    # clear current geometry
+    feature.clear_geometry()
+    assert feature.get_line_strings() == []
+    feature.add_line_string(line_string)
+    assert feature.get_line_strings() == [line_string]
+
+    # Now serialize the tile
+    data = vt.serialize()
+    # Reload as new tile to check that cursor moves to proper position for another add point
+    vt = VectorTile(data)
+    feature = vt.layers[0].features[0]
+    feature.add_line_string(line_string2)
+    assert feature.get_line_strings() == [line_string, line_string2]
+
+def test_create_polygon_feature():
+    vt = VectorTile()
+    layer = vt.add_layer('test')
+    feature = layer.add_polygon_feature()
+    assert isinstance(feature, PolygonFeature)
+    assert len(layer.features) == 1
+    assert feature == layer.features[0]
+    polygon = [[[0,0],[10,0],[10,10],[0,10],[0,0]],[[3,3],[3,5],[5,5],[3,3]]]
+    feature.add_ring(polygon[0])
+    feature.add_ring(polygon[1])
+    assert feature.get_rings() == polygon
+    assert feature.get_polygons() == [polygon]
+    
+    feature.add_ring(polygon[0])
+    feature.add_ring(polygon[1])
+    assert feature.get_polygons() == [polygon, polygon]
+
+    # clear current geometry
+    feature.clear_geometry()
+    assert feature.get_rings() == []
+    assert feature.get_polygons() == []
+
+    # Add in opposite order
+    feature.add_ring(polygon[1])
+    feature.add_ring(polygon[0])
+    assert feature.get_rings() == [polygon[1], polygon[0]]
+    # First ring in wrong winding order so dropped from polygon output
+    assert feature.get_polygons() == [[polygon[0]]]
+    
+    # clear current geometry
+    feature.clear_geometry()
+    assert feature.get_rings() == []
+    assert feature.get_polygons() == []
+
+    feature.add_ring(polygon[0])
+    feature.add_ring(polygon[1])
+    assert feature.get_rings() == polygon
+    assert feature.get_polygons() == [polygon]
+    
+    # Now serialize the tile
+    data = vt.serialize()
+    # Reload as new tile to check that cursor moves to proper position for another add point
+    vt = VectorTile(data)
+    feature = vt.layers[0].features[0]
+    assert feature.get_rings() == polygon
+    assert feature.get_polygons() == [polygon]
+    feature.add_ring(polygon[0])
+    feature.add_ring(polygon[1])
+    assert feature.get_polygons() == [polygon, polygon]
+
+def test_create_spline_feature():
+    vt = VectorTile()
+    layer = vt.add_layer('test')
+    feature = layer.add_spline_feature()
+    assert isinstance(feature, SplineFeature)
+    assert len(layer.features) == 1
+    assert feature == layer.features[0]
+    

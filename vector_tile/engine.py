@@ -207,7 +207,7 @@ class LineStringFeature(Feature):
             
     def add_line_string(self, linestring):
         num_commands = len(linestring)
-        if num_comands < 2:
+        if num_commands < 2:
             raise Exception("Error adding linestring, less then 2 points provided")
         if not self._cursor_at_end:
             # Use geometry retrieval process to move cursor to proper position
@@ -259,17 +259,17 @@ class PolygonFeature(Feature):
             # Use geometry retrieval process to move cursor to proper position
             self.get_rings()
         num_commands = len(ring)
-        if num_comands < 3:
+        if num_commands < 3:
             raise Exception("Error adding ring to polygon, too few points")
         if self._points_equal(ring[0], ring[-1]):
             num_commands = num_commands - 1
-        if num_comands < 3:
+        if num_commands < 3:
             raise Exception("Error adding ring to polygon, too few points with last point closing")
         self._feature.geometry.append(command_move_to(1))
-        self._encode_point(linestring[0])
+        self._encode_point(ring[0])
         self._feature.geometry.append(command_line_to(num_commands - 1))
         for i in xrange(1, num_commands):
-            self._encode_point(linestring[i])
+            self._encode_point(ring[i])
         self._feature.geometry.append(command_close_path())
     
     def get_rings(self):
