@@ -216,4 +216,11 @@ def test_create_spline_feature():
     assert isinstance(feature, SplineFeature)
     assert len(layer.features) == 1
     assert feature == layer.features[0]
+    control_points = [[8,10],[9,11],[11,9],[12,10]]
+    knots = [0.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0]
+    feature.add_control_points(control_points)
+    feature.add_knots(knots)
+
+    assert feature.get_control_points() == control_points
+    assert feature.get_knots() == knots
     

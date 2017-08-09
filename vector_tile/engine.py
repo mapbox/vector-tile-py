@@ -335,7 +335,7 @@ class SplineFeature(Feature):
             
     def add_control_points(self, control_points):
         num_commands = len(control_points)
-        if num_comands < 2:
+        if num_commands < 2:
             raise Exception("Error adding control points, less then 2 points provided")
         self._feature.geometry.append(command_move_to(1))
         self._encode_point(control_points[0])
@@ -365,13 +365,11 @@ class SplineFeature(Feature):
             return []
         return control_points
 
-    @property
-    def knots(self):
-        return self._feature.knots
+    def add_knots(self, knots):
+        self._feature.knots[:] = knots
 
-    @knots.setter
-    def knots(self, knots):
-        self._feature.knots = knots 
+    def get_knots(self):
+        return self._feature.knots
 
 class Layer(object):
 
