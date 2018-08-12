@@ -44,14 +44,14 @@ if __name__ == "__main__":
     parser.add_option("-v", "--verbose", action="store_true",
                       dest="verbose", default=False)
     (options, args) = parser.parse_args()
-    
+
     if len(args) != 1:
         stderr("No file name")
         sys.exit(0)
 
     filename = args[0]
     with open(filename, "rb") as f:
-        tile = vector_tile_pb2.tile()
+        tile = vector_tile_pb2.Tile()
         raw = f.read()
         try:
             decoded = raw.decode('zlib')

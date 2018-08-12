@@ -26,7 +26,7 @@ if __name__ == "__main__" :
     parser.add_option("-l", "--layer", dest="layer", default=None)
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose")
     (options, args) = parser.parse_args()
-    
+
     if len(args) != 1:
         stderr("No file name")
         sys.exit(0)
@@ -48,7 +48,7 @@ if __name__ == "__main__" :
     if options.verbose:
         stderr("opening %s as tile %d/%d/%d" % (filename, zoom, x, y))
     with open(filename, "rb") as f:
-        tile = vector_tile_pb2.tile()
+        tile = vector_tile_pb2.Tile()
         raw = f.read()
         try:
             decoded = raw.decode('zlib')
@@ -60,7 +60,7 @@ if __name__ == "__main__" :
         tile.ParseFromString(decoded)
         req = renderer.Request(x,y,zoom)
         vtile = renderer.VectorTile(req, tile)
-        vtile.layer = tile.layer
+        vtile.layer = tile.Layer
 
         if options.layer:
             for layer in tile.layers:
