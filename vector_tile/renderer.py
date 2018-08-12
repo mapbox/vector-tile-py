@@ -291,6 +291,8 @@ class VectorTile(object):
                         properties[name] = val.string_value
                     elif val.HasField('int_value'):
                         properties[name] = val.int_value
+                    elif val.HasField('sint_value'):
+                        properties[name] = val.sint_value
                     elif val.HasField('float_value'):
                         properties[name] = val.float_value
                     elif val.HasField('double_value'):
