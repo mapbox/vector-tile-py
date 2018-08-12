@@ -15,7 +15,7 @@ class TestRequestCtrans(unittest.TestCase):
         x,y = renderer.lonlat2merc(-180,-85)
         self.assertAlmostEqual(-20037508.342789244,x)
         self.assertAlmostEqual(-19971868.8804085888,y)
-    
+
     def test_box2d(self):
         box = renderer.Box2d(-180,-85,180,85)
         assert box.minx == -180
@@ -25,7 +25,7 @@ class TestRequestCtrans(unittest.TestCase):
         assert box.intersects(0,0)
         assert not box.intersects(-180,-90)
         self.assertAlmostEqual(box.bounds(),[box.minx,box.miny,box.maxx,box.maxy])
-        
+
     def test_spherical_mercator(self):
         merc = renderer.SphericalMercator()
         z0_extent = merc.bbox(0,0,0)
@@ -80,10 +80,10 @@ class TestTileCreation(unittest.TestCase):
         """ Test creating an empty tile and an empty layer """
         req = renderer.Request(0,0,0)
         vtile = renderer.VectorTile(req)
-        assert isinstance(vtile.tile, vector_tile_pb2.tile)
+        assert isinstance(vtile.tile, vector_tile_pb2.Tile)
         self.assertEqual(len(vtile.tile.layers), 0)
         layer = vtile.add_layer(name="points")
-        assert layer is not None and isinstance(layer, vector_tile_pb2.tile.layer)
+        assert layer is not None and isinstance(layer, vector_tile_pb2.Tile.Layer)
         self.assertEqual(len(vtile.tile.layers), 1)
         self.assertEqual(vtile.tile.layers[0], layer)
         self.assertEqual(len(layer.features), 0)
@@ -123,7 +123,7 @@ class TestTileCreation(unittest.TestCase):
         #now dump tile to protocol buffer message
         pbf = vtile.to_message()
         assert len(pbf) > 0
-        tile = vector_tile_pb2.tile()
+        tile = vector_tile_pb2.Tile()
         tile.ParseFromString(pbf)
         vtile2 = renderer.VectorTile(req, tile)
         j_obj_deserialized = vtile2.to_geojson(layer_names=True, lonlat=True)
@@ -136,10 +136,10 @@ class TestTileCreation(unittest.TestCase):
         layer = vtile.add_layer(name="points")
         attr = {"name":"DC",
                 "integer":10,
-                "bigint":sys.maxint,
-                "nbigint":-1 * sys.maxint,
+                "bigint":sys.maxsize,
+                "nbigint":-1 * sys.maxsize,
                 "float":1.5,
-                "bigfloat":float(sys.maxint),
+                "bigfloat":float(sys.maxsize),
                 "unistr":u"élan",
                 "bool":True,
                 "bool2":False

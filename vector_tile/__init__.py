@@ -1,6 +1,13 @@
 
 from collections import defaultdict
-from itertools import chain, ifilter, imap, izip, tee
+from itertools import chain, tee
+import sys
+try:
+    # Python 2
+    from future_builtins import filter, map, zip
+except ImportError:
+    # Python 3
+    pass
 
 from vector_tile import vector_tile_pb2
 
@@ -14,15 +21,22 @@ geom_type_map = {
     'LineString': 2,
     'Polygon': 3 }
 
-value_type_map = {
-    unicode: 'string_value',
-    str: 'string_value',
-    float: 'double_value',
-    int: 'int_value',
-    bool: 'bool_value' }
+if sys.version_info.major == 3:
+    value_type_map = {
+        str: 'string_value',
+        float: 'double_value',
+        int: 'int_value',
+        bool: 'bool_value' }
+else:
+    value_type_map = {
+        unicode: 'string_value',
+        str: 'string_value',
+        float: 'double_value',
+        int: 'int_value',
+        bool: 'bool_value' }
 
 def value(ob):
-    v = vector_tile_pb2.tile.value()
+    v = vector_tile_pb2.Tile.value()
     setattr(v, value_type_map[type(ob)], ob)
     return v
 
@@ -46,7 +60,7 @@ def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
     a, b = tee(iterable)
     next(b, None)
-    return izip(a, b)
+    return zip(a, b)
 
 def layer(name, features):
     """Make a vector_tile.Tile.Layer from GeoJSON features."""
@@ -70,13 +84,13 @@ def layer(name, features):
             coords = g['coordinates']
             if gtype == 'Point':
                 geometry = [(1<<3)+1] + [
-                    (n << 1) ^ (n >> 31) for n in imap(int, coords)]
+                    (n << 1) ^ (n >> 31) for n in map(int, coords)]
             elif gtype == 'LineString':
                 num = len(coords)
                 geometry = [0]*(4 + 2*(num-1))
                 geometry[0] = (1<<3)+1
                 geometry[1:3] = (
-                    (n << 1) ^ (n >> 31) for n in imap(int, coords[0]))
+                    (n << 1) ^ (n >> 31) for n in map(int, coords[0]))
                 geometry[3] = ((num-1)<<3)+2
                 for i, (prev, pair) in enumerate(pairwise(coords), 1):
                     prev = map(int, prev)
@@ -92,7 +106,7 @@ def layer(name, features):
                     geometry = [0]*(5 + 2*(num-1))
                     geometry[0] = (1<<3)+1
                     geometry[1:3] = (
-                        (n << 1) ^ (n >> 31) for n in imap(int, ring[0]))
+                        (n << 1) ^ (n >> 31) for n in map(int, ring[0]))
                     geometry[3] = ((num-1)<<3)+2
                     for i, (prev, pair) in enumerate(pairwise(ring), 1):
                         prev = map(int, prev)
@@ -119,7 +133,7 @@ def layer(name, features):
 
     # Finish up the layer.
     pbl.keys.extend(map(str, pb_keys))
-    pbl.values.extend(map(value, ifilter(None, pb_vals)))
+    pbl.values.extend(map(value, filter(None, pb_vals)))
 
     return pbl
 
@@ -135,4 +149,3 @@ def mapping(feature):
         'id': feature.id,
         'properties': {},
         'geometry': None }
-

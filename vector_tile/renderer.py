@@ -5,13 +5,17 @@ import gzip
 import json
 import os
 import math
-import vector_tile_pb2
+from . import vector_tile_pb2
+
+is_python3 = sys.version_info.major == 3
+if is_python3:
+    unicode = str
 
 class Box2d(object):
     """Box2d object to represent floating point bounds as
-    
+
         minx,miny,maxx,maxy
-     
+
      Which we can also think of as:
 
         left,bottom,right,top
@@ -28,10 +32,10 @@ class Box2d(object):
 
     def height(self):
         return self.maxy - self.miny
-    
+
     def bounds(self):
         return [self.minx,self.miny,self.maxx,self.maxy]
-    
+
     def intersects(self, x, y):
         return not (x > self.maxx or x < self.minx or y > self.maxy or y < self.miny)
 
@@ -65,8 +69,8 @@ def minmax(a,b,c):
 class SphericalMercator(object):
     """
     Core definition of Spherical Mercator Projection.
-    
-    Adapted from:  
+
+    Adapted from:
       http://svn.openstreetmap.org/applications/rendering/mapnik/generate_tiles.py
     """
     def __init__(self, levels=22, size=256):
@@ -91,7 +95,7 @@ class SphericalMercator(object):
         f = minmax(math.sin(DEG_TO_RAD * px[1]),-0.9999,0.9999)
         g = round(d[1] + 0.5 * math.log((1+f)/(1-f))*-self.Cc[zoom])
         return (e,g)
-    
+
     def px_to_ll(self, px, zoom):
         """ Convert pixel postion to LatLong (EPSG:4326) """
         e = self.zc[zoom]
@@ -99,7 +103,7 @@ class SphericalMercator(object):
         g = (px[1] - e[1])/-self.Cc[zoom]
         h = RAD_TO_DEG * ( 2 * math.atan(math.exp(g)) - 0.5 * math.pi)
         return (f,h)
-    
+
     def bbox(self, x, y, zoom):
         """ Convert XYZ to extent in mercator """
         ll = (x * self.size,(y + 1) * self.size)
@@ -126,7 +130,7 @@ class SphericalMercator(object):
 class Request(object):
     """
     Request encapulates a single tile request in the common OSM, aka XYZ scheme.
-    
+
     Interally we convert the x,y,zoom to a mercator bounding box assuming a 256 pixel tile
     """
     def __init__(self, x, y, zoom):
@@ -140,7 +144,7 @@ class Request(object):
         self.size = 256
         self.mercator = SphericalMercator(levels=22,size=self.size)
         self.extent = Box2d(*self.mercator.bbox(x,y,zoom))
-    
+
     def get_extent(self):
         return self.extent
 
@@ -149,7 +153,7 @@ class Request(object):
 
     def get_height(self):
         return self.extent.height()
-    
+
     def bounds(self):
         return self.extent.bounds()
 
@@ -202,8 +206,8 @@ class VectorTile(object):
                 self.keys[layer.name] = layer.keys
                 self.values[layer.name] = layer.values
         else:
-            self.tile = vector_tile_pb2.tile()
-    
+            self.tile = vector_tile_pb2.Tile()
+
     def __str__(self):
         return self.tile.__str__()
 
@@ -239,7 +243,7 @@ class VectorTile(object):
                 f = layer.features.add()
                 self.feature_count += 1
                 f.id = self.feature_count
-                f.type = self.tile.Point
+                f.type = self.tile.POINT
                 self._handle_attr(layer,f,properties)
                 f.geometry.append((1 << 3) | (1 & ((1 << 3) - 1)))
                 f.geometry.append(dx)
@@ -280,7 +284,7 @@ class VectorTile(object):
                 fobj = {}
                 fobj['type'] = "Feature"
                 properties = {}
-                for i in xrange(0,len(feat.tags),2):
+                for i in range(0,len(feat.tags),2):
                     key_id = feat.tags[i]
                     value_id = feat.tags[i+1]
                     name = str(layer.keys[key_id])
@@ -303,7 +307,7 @@ class VectorTile(object):
                 if layer_names:
                     properties['layer'] = layer.name
                 fobj['properties'] = properties
-     
+
                 geometry_count = len(feat.geometry)
                 if feat.type == 0:
                     pass
@@ -372,9 +376,9 @@ class VectorTile(object):
                             "type":"Polygon",
                             "coordinates": rings
                         }
-     
+
                 features.append(fobj)
-     
+
         jobj['features'] = features
         return jobj
 
