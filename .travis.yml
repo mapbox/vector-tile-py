@@ -3,6 +3,7 @@ language: python
 python:
   - "2.7"
   - "3.6"
+  - "3.7"
 
 install:
   - pip install -r requirements.txt
@@ -10,3 +11,7 @@ install:
 
 script:
   - python tests.py
+  - python example.py
+  - git clone https://github.com/mapbox/mvt-fixtures.git
+  - python tile-raw-info.py ./mvt-fixtures/real-world/nepal/13-6041-3426.mvt
+  - python tile-info.py ./mvt-fixtures/real-world/nepal/13-6041-3426.mvt -t 13/6041/3426 > nepal.geojson
