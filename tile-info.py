@@ -49,13 +49,7 @@ if __name__ == "__main__" :
         stderr("opening %s as tile %d/%d/%d" % (filename, zoom, x, y))
     with open(filename, "rb") as f:
         tile = vector_tile_pb2.Tile()
-        raw = f.read()
-        try:
-            decoded = raw.decode('zlib')
-            if options.verbose:
-                stderr("decoded zlib length:%d" % len(decoded))
-        except:
-            decoded = raw
+        decoded = f.read()
 
         tile.ParseFromString(decoded)
         req = renderer.Request(x,y,zoom)

@@ -37,7 +37,6 @@ def stderr(*objs):
 
 
 if __name__ == "__main__":
-    sys.stderr = codecs.getwriter('utf8')(sys.stderr)
     usage = "usage: %prog "
     parser = OptionParser(usage=usage,
         description="Output information in a Mapnik vector tile.")
@@ -52,11 +51,7 @@ if __name__ == "__main__":
     filename = args[0]
     with open(filename, "rb") as f:
         tile = vector_tile_pb2.Tile()
-        raw = f.read()
-        try:
-            decoded = raw.decode('zlib')
-        except:
-            decoded = raw
+        decoded = f.read()
 
         tile.ParseFromString(decoded)
 
