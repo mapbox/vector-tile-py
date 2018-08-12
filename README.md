@@ -7,11 +7,53 @@ It is only a very limited demo (only supports points) at this point and not a ge
 
 ## Depends
 
- - Python 2.x
+ - Python 2.x || 3.x
  - Google protobuf python bindings
 
-## Example
+## Install
 
-```sh
+```
+pip install -r requirements.txt --user
+```
+
+## Test
+
+```
+python tests.py
+```
+
+## Examples
+
+Example showing how to create a vector tile with a single layer with a single feature with a point:
+
+```
 python example.py
+```
+
+
+Now let's get some real vector tile samples:
+
+```
+git clone https://github.com/mapbox/mvt-fixtures.git
+```
+
+We can inspect the tile data, printing a summary:
+
+```
+python tile-raw-info.py ./mvt-fixtures/real-world/nepal/13-6041-3426.mvt
+````
+
+We can also dump the data as GeoJSON:
+
+```
+python tile-info.py ./mvt-fixtures/real-world/nepal/13-6041-3426.mvt -t 13/6041/3426 > nepal.geojson
+```
+
+
+### Regenerating the protobuf bindings
+
+
+```
+git clone https://github.com/mapbox/vector-tile-spec.git
+protoc ./vector-tile-spec/2.1/vector_tile.proto --python_out=vector_tile/ --proto_path ./vector-tile-spec/2.1/
 ```
